@@ -1,0 +1,59 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Docker
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y docker.io
+
+      - name: Login to Docker Hub
+        run: |
+          docker login -u glauberjaska -p Gaj170498@
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t glauberjaska/viagem .
+          docker push glauberjaska/viagem
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run OWASP ZAP test
+        run: |
+          docker run -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-weekly zap-baseline.py -t https://8080.com -g gen.conf -r relatorio.html
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Deploy application
+        run: |
+          docker run -d -p 8080:80 glauberjaska/viagem
+
+  notification:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send notification to Discord
+        if: always()
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{"content":"Pipeline completed successfully!"}' ${{ secrets.DISCORD_WEBHOOK_URL }}
